@@ -1,9 +1,9 @@
-const Discord = require('discord.js');
-const { prefix, token, dbHost, dbUser, dbPassword, dbName } = require('./config.json');
+const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const { prefix, token, database } = require('./config.json');
 const mysql = require('mysql2/promise');
-const client = new Discord.Client();
+const client = new Client({ intents: GatewayIntentBits.Guilds });
 const fs = require('fs');
-client.commands = new Discord.Collection();
+client.commands = new Collection();
 
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 
@@ -12,15 +12,15 @@ for (const file of commandFiles) {
     client.commands.set(command.name, command);
 }
 
-const cooldowns = new Discord.Collection();
+const cooldowns = new Collection();
 
 async function initDatabase() {
     try {
         const connection = await mysql.createConnection({
-            host: dbHost,
-            user: dbUser,
-            password: dbPassword,
-            database: dbName
+            host: database.host,
+            user: database.user,
+            password: database.password,
+            database: database.database
         });
         console.log('Connected to the MySQL database');
         return connection;
@@ -34,7 +34,7 @@ client.once('ready', async () => {
     await initDatabase();
 });
 
-client.on('message', async message => {
+client.on('messageCreate', async message => {
     if (!message.content.startsWith(prefix) || message.author.bot) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
@@ -45,7 +45,7 @@ client.on('message', async message => {
 
     if (!command) return;
 
-    if (command.guildOnly && message.channel.type === 'dm') {
+    if (command.guildOnly && message.channel.type === 'DM') {
         return message.reply('I can\'t execute that command inside DMs!');
     }
 
@@ -60,7 +60,7 @@ client.on('message', async message => {
     }
 
     if (!cooldowns.has(command.name)) {
-        cooldowns.set(command.name, new Discord.Collection());
+        cooldowns.set(command.name, new Collection());
     }
 
     const now = Date.now();
@@ -81,10 +81,10 @@ client.on('message', async message => {
 
     try {
         const connection = await mysql.createConnection({
-            host: dbHost,
-            user: dbUser,
-            password: dbPassword,
-            database: dbName
+            host: database.host,
+            user: database.user,
+            password: database.password,
+            database: database.database
         });
         await command.execute(message, args, connection);
     } catch (error) {
